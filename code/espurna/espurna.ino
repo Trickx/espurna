@@ -170,7 +170,9 @@ void setup() {
     #if UART_MQTT_SUPPORT
         uartmqttSetup();
     #endif
-
+    #if LACROSSEGW
+        lacrosseSetup();
+    #endif
 
     // 3rd party code hook
     #if USE_EXTRA

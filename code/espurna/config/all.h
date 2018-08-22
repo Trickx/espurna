@@ -38,3 +38,11 @@
 #ifdef USE_CORE_VERSION_H
 #include "core_version.h"
 #endif
+
+// RFMxx Libs
+// TODO: Cleanup
+#define RFM1_SS          15
+#include "../libs/RFMxx.h"
+#include "../libs/Logger.h"
+#include "../libs/TypedQueue.h"
+#include "../libs/LaCrosse.h"
