@@ -703,7 +703,6 @@ void mqttUnsubscribe(const char * topic) {
 
 void mqttEnabled(bool status) {
     _mqtt_enabled = status;
-    setSetting("mqttEnabled", status ? 1 : 0);
 }
 
 bool mqttEnabled() {
@@ -736,7 +735,7 @@ void mqttSetBroker(IPAddress ip, unsigned int port) {
 }
 
 void mqttSetBrokerIfNone(IPAddress ip, unsigned int port) {
-    if (!hasSetting("mqttServer")) mqttSetBroker(ip, port);
+    if (getSetting("mqttServer", MQTT_SERVER).length() == 0) mqttSetBroker(ip, port);
 }
 
 void mqttReset() {
@@ -751,7 +750,7 @@ void mqttReset() {
 void mqttSetup() {
 
     _mqttBackwards();
-    
+
     DEBUG_MSG_P(PSTR("[MQTT] Async %s, SSL %s, Autoconnect %s\n"),
         MQTT_USE_ASYNC ? "ENABLED" : "DISABLED",
         ASYNC_TCP_SSL_ENABLED ? "ENABLED" : "DISABLED",
@@ -809,7 +808,6 @@ void mqttSetup() {
 
     #if WEB_SUPPORT
         wsOnSendRegister(_mqttWebSocketOnSend);
-        wsOnAfterParseRegister(_mqttConfigure);
         wsOnReceiveRegister(_mqttWebSocketOnReceive);
     #endif
 
@@ -817,8 +815,9 @@ void mqttSetup() {
         _mqttInitCommands();
     #endif
 
-    // Register loop
+    // Main callbacks
     espurnaRegisterLoop(mqttLoop);
+    espurnaRegisterReload(_mqttConfigure);
 
 }
 

@@ -52,10 +52,6 @@ String getCoreRevision() {
     #endif
 }
 
-unsigned long maxSketchSpace() {
-    return (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
-}
-
 // WTF
 // Calling ESP.getFreeHeap() is making the system crash on a specific
 // AiLight bulb, but anywhere else...
@@ -73,6 +69,10 @@ String getEspurnaSensors() {
     return FPSTR(espurna_sensors);
 }
 #endif
+
+String getEspurnaWebUI() {
+    return FPSTR(espurna_webui);
+}
 
 String buildTime() {
 
@@ -320,7 +320,7 @@ void info() {
     #if SENSOR_SUPPORT
         DEBUG_MSG_P(PSTR("[INIT] SENSORS: %s\n"), getEspurnaSensors().c_str());
     #endif // SENSOR_SUPPORT
-    DEBUG_MSG_P(PSTR("[INIT] WEBUI IMAGE CODE: %u\n"), WEBUI_IMAGE);
+    DEBUG_MSG_P(PSTR("[INIT] WEBUI IMAGE: %s\n"), getEspurnaWebUI().c_str());
     DEBUG_MSG_P(PSTR("\n"));
 
     // -------------------------------------------------------------------------

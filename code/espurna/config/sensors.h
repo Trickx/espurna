@@ -5,13 +5,13 @@
 #define SENSOR_DEBUG                        0               // Debug sensors
 
 #define SENSOR_READ_INTERVAL                6               // Read data from sensors every 6 seconds
-#define SENSOR_READ_MIN_INTERVAL            6               // Minimum read interval
+#define SENSOR_READ_MIN_INTERVAL            1               // Minimum read interval
 #define SENSOR_READ_MAX_INTERVAL            3600            // Maximum read interval
 #define SENSOR_INIT_INTERVAL                10000           // Try to re-init non-ready sensors every 10s
 
 #define SENSOR_REPORT_EVERY                 10              // Report every this many readings
 #define SENSOR_REPORT_MIN_EVERY             1               // Minimum every value
-#define SENSOR_REPORT_MAX_EVERY             12              // Maximum
+#define SENSOR_REPORT_MAX_EVERY             60              // Maximum
 
 #define SENSOR_USE_INDEX                    0               // Use the index in topic (i.e. temperature/0)
                                                             // even if just one sensor (0 for backwards compatibility)
@@ -34,6 +34,18 @@
 
 #ifndef HUMIDITY_MIN_CHANGE
 #define HUMIDITY_MIN_CHANGE                 0               // Minimum humidity change to report
+#endif
+
+#ifndef ENERGY_MAX_CHANGE
+#define ENERGY_MAX_CHANGE                   0               // Maximum energy change to report (if >0 it will allways report when delta(E) is greater than this)
+#endif
+
+#ifndef SENSOR_SAVE_EVERY
+#define SENSOR_SAVE_EVERY                   0               // Save accumulating values to EEPROM (atm only energy)
+                                                            // A 0 means do not save and it's the default value
+                                                            // A number different from 0 means it should store the value in EEPROM
+                                                            // after these many reports
+                                                            // Warning: this might wear out flash fast!
 #endif
 
 #define SENSOR_PUBLISH_ADDRESSES            0               // Publish sensor addresses
@@ -295,7 +307,7 @@
 #endif
 
 #ifndef EVENTS_INTERRUPT_MODE
-#define EVENTS_INTERRUPT_MODE           RISING  // RISING, FALLING, BOTH
+#define EVENTS_INTERRUPT_MODE           RISING  // RISING, FALLING, CHANGE
 #endif
 
 #define EVENTS_DEBOUNCE                 50      // Do not register events within less than 50 millis
@@ -318,7 +330,7 @@
 #endif
 
 #ifndef GEIGER_INTERRUPT_MODE
-#define GEIGER_INTERRUPT_MODE           RISING  // RISING, FALLING, BOTH
+#define GEIGER_INTERRUPT_MODE           RISING  // RISING, FALLING, CHANGE
 #endif
 
 #define GEIGER_DEBOUNCE                 25      // Do not register events within less than 25 millis.
