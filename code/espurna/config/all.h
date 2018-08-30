@@ -47,3 +47,8 @@
 #include "../libs/Logger.h"
 #include "../libs/TypedQueue.h"
 #include "../libs/LaCrosse.h"
+// TODO: fix hardcoded settings
+#include <InfluxDb.h>
+#define INFLUXDB_HOST "192.168.0.21"
+#define INFLUXDB_PORT "8086"
+#define INFLUXDB_DATABASE "lacrosse"

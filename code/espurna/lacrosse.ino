@@ -43,13 +43,16 @@ byte PASS_PAYLOAD            = 0;        // <n>p       transmitted the payload o
 bool DEBUG                   = 0;        // <n>d       set to 1 to see debug messages
 bool USE_SERIAL              = 1;        //            0=do not send sensor data on the serial
 
+//Influxdb influx(INFLUXDB_HOST, INFLUXDB_PORT);
+Influxdb influx(INFLUXDB_HOST);
+
 // -----------------------------------------------------------------------------
 // Radio
 // -----------------------------------------------------------------------------
 void Dispatch(String data, String raw="") {
-  if(USE_SERIAL) {
-    Serial.println(data);
-  }
+  //if(USE_SERIAL) {
+    //Serial.println(data);
+  //}
 
   if (raw.length() > 0) {
     raw = " [" + raw + "]";
@@ -58,7 +61,8 @@ void Dispatch(String data, String raw="") {
   if (data.startsWith("\n")) {
     data = data.substring(1);
   }
-  logger.logData(data + raw);
+  //logger.logData(data + raw);
+  DEBUG_MSG("[Lacrosse] %s\n", data.c_str());
 }
 
 void SetDataRate(RFMxx *rfm, unsigned long dataRate) {
@@ -137,6 +141,25 @@ bool HandleReceivedData(RFMxx *rfm) {
       raw.toUpperCase();
 
       Dispatch(lcf.Text, raw);
+
+      //if(lcf.ID == 12){
+        //idbSend("Humidity",    lcf.ID,  String(lcf.Humidity).c_str());
+        //idbSend("Temperature", lcf.ID,  String(lcf.Temperature).c_str());
+        //idbSend("NewBat", lcf.ID,  lcf.NewBatteryFlag ? "1" : "0");
+        //idbSend("WeakBat", lcf.ID,  lcf.WeakBatteryFlag ? "1" : "0");
+
+        //bool idbSend(const char * topic, unsigned char id, const char * payload)//
+
+        InfluxData row("temperature");
+        char _id[4];
+        snprintf(_id, sizeof(_id), "%d", lcf.ID);
+        row.addTag("ID", _id);
+        row.addValue("temp", lcf.Temperature);
+        row.addValue("hum", lcf.Humidity);
+        row.addValue("newbat", lcf.NewBatteryFlag);
+        row.addValue("weakbat", lcf.WeakBatteryFlag);
+        influx.write(row);
+      //}
     }
   }
 
@@ -165,6 +188,10 @@ void _lacrosseLoop() {
 // -----------------------------------------------------------------------------
 
 void lacrosseSetup() {
+
+  //Influxdb
+  // set the target database
+  influx.setDb(INFLUXDB_DATABASE);
 
   // TODO: Cleanup
   rfms[0] = &rfm1;
