@@ -43,8 +43,62 @@ byte PASS_PAYLOAD            = 0;        // <n>p       transmitted the payload o
 bool DEBUG                   = 0;        // <n>d       set to 1 to see debug messages
 bool USE_SERIAL              = 1;        //            0=do not send sensor data on the serial
 
+struct _lnode_t {
+    unsigned long count = 0;
+    unsigned char lastPacketID = 0;
+};
+
+_lnode_t _lacrosse_node_info[64];
+unsigned char _lacrosse_node_count;
+unsigned long _lacrosse_packet_count;
+
 //Influxdb influx(INFLUXDB_HOST, INFLUXDB_PORT);
 Influxdb influx(INFLUXDB_HOST);
+
+void _lacrosseProcess(LaCrosse::Frame * data) {
+
+    // Count seen nodes and packets
+    if (_lacrosse_node_info[data->ID].count == 0) ++_lacrosse_node_count;
+    ++_lacrosse_packet_count;
+
+    _lacrosse_node_info[data->ID].count = _lacrosse_node_info[data->ID].count + 1;
+
+    // Send info to websocket clients
+    /*
+    {
+        char buffer[200];
+        snprintf_P(
+            buffer,
+            sizeof(buffer) - 1,
+            PSTR("{\"nodeCount\": %d, \"packetCount\": %lu, \"packet\": {\"senderID\": %u, \"targetID\": %u, \"packetID\": %u, \"key\": \"%s\", \"value\": \"%s\", \"rssi\": %d, \"duplicates\": %d, \"missing\": %d}}"),
+            _lacrosse_node_count, _lacrosse_packet_count,
+            data->ID, 0, 0, 0, data->Temperature, data->Humidity, 0, 0);
+        wsSend(buffer);
+    }
+    */
+
+    // Try to find a matching mapping
+    for (unsigned int i=0; i<RFM69_MAX_TOPICS; i++) {
+        unsigned char node = getSetting("node", i, 0).toInt();
+        if (0 == node) break;
+        if (node == data->ID) {
+            char _topic[50];
+            snprintf(_topic, sizeof(_topic), "%s/%s/Temp", getSetting("key", i, "").c_str(), getSetting("topic", i, "").c_str());
+            mqttSendRaw((char *) _topic, (char *) String(data->Temperature).c_str());
+            return;
+        }
+    }
+
+
+    // Mapping not found, use default topic
+    String topic = getSetting("rfm69Topic", RFM69_DEFAULT_TOPIC);
+    if (topic.length() > 0) {
+        topic.replace("{node}", String(data->ID));
+        topic.replace("{key}", "Temp");
+        mqttSendRaw((char *) topic.c_str(), (char *) String(data->Temperature).c_str());
+    }
+}
+
 
 // -----------------------------------------------------------------------------
 // Radio
@@ -140,6 +194,8 @@ bool HandleReceivedData(RFMxx *rfm) {
       }
       raw.toUpperCase();
 
+      _lacrosseProcess(&lcf);
+
       Dispatch(lcf.Text, raw);
 
       //if(lcf.ID == 12){
@@ -150,15 +206,29 @@ bool HandleReceivedData(RFMxx *rfm) {
 
         //bool idbSend(const char * topic, unsigned char id, const char * payload)//
 
+        // Prepare Influx data sample
         InfluxData row("temperature");
-        char _id[4];
+        char _id[20];
         snprintf(_id, sizeof(_id), "%d", lcf.ID);
-        row.addTag("ID", _id);
+        //row.addTag("ID", _id);
         row.addValue("temp", lcf.Temperature);
         row.addValue("hum", lcf.Humidity);
         row.addValue("newbat", lcf.NewBatteryFlag);
         row.addValue("weakbat", lcf.WeakBatteryFlag);
+
+        // Try to find a matching mapping
+        for (unsigned int i=0; i<RFM69_MAX_TOPICS; i++) {
+            unsigned char node = getSetting("node", i, 0).toInt();
+            if (0 == node) break;
+            if (node == lcf.ID) {
+                //_id = getSetting("topic", i, "").c_str();
+                snprintf(_id, sizeof(_id), "%s", getSetting("topic", i, "").c_str());
+            }
+        }
+
+        row.addTag("ID", _id);
         influx.write(row);
+
       //}
     }
   }
@@ -167,6 +237,7 @@ bool HandleReceivedData(RFMxx *rfm) {
 
   return result;
 }
+
 
 
 void _lacrosseLoop() {
@@ -182,12 +253,21 @@ void _lacrosseLoop() {
   //return receivedPackets;
 }
 
+void _lacrosseClear() {
+    //for(unsigned int i=0; i<255; i++) {
+    //    _rfm69_node_info[i].duplicates = 0;
+    //    _rfm69_node_info[i].missing = 0;
+    //}
+    _lacrosse_node_count = 0;
+    _lacrosse_packet_count = 0;
+}
 
 // -----------------------------------------------------------------------------
 // Setup
 // -----------------------------------------------------------------------------
 
 void lacrosseSetup() {
+  _lacrosseClear();
 
   //Influxdb
   // set the target database
@@ -208,6 +288,14 @@ void lacrosseSetup() {
     logger.print("Radio #1 found: ");
     logger.println(rfm1.GetRadioName());
   }
+
+  /*
+  #if WEB_SUPPORT
+      wsOnSendRegister(_rfm69WebSocketOnSend);
+      wsOnReceiveRegister(_rfm69WebSocketOnReceive);
+      wsOnActionRegister(_rfm69WebSocketOnAction);
+  #endif
+  */
 
     // Register loop
     espurnaRegisterLoop(_lacrosseLoop);
