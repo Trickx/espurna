@@ -209,23 +209,25 @@ bool HandleReceivedData(RFMxx *rfm) {
         // Prepare Influx data sample
         InfluxData row("temperature");
         char _id[20];
+        String _known = "0";
         snprintf(_id, sizeof(_id), "%d", lcf.ID);
-        //row.addTag("ID", _id);
         row.addValue("temp", lcf.Temperature);
         row.addValue("hum", lcf.Humidity);
         row.addValue("newbat", lcf.NewBatteryFlag);
         row.addValue("weakbat", lcf.WeakBatteryFlag);
 
         // Try to find a matching mapping
+        // Replace tag "ID" from air packet ID by topic field.
         for (unsigned int i=0; i<RFM69_MAX_TOPICS; i++) {
             unsigned char node = getSetting("node", i, 0).toInt();
             if (0 == node) break;
             if (node == lcf.ID) {
-                //_id = getSetting("topic", i, "").c_str();
                 snprintf(_id, sizeof(_id), "%s", getSetting("topic", i, "").c_str());
+                _known = "1";
             }
         }
 
+        row.addTag("MATCH", _known);
         row.addTag("ID", _id);
         influx.write(row);
 
