@@ -217,6 +217,14 @@ void heartbeat() {
         #endif
     #endif
 
+    #if LACROSSEGW
+        InfluxData row("temperature");
+        row.addValue("freeheap", free_heap);
+        row.addValue("uptime", uptime_seconds);
+        row.addTag("host", "LGW");
+        influx.write(row);
+    #endif
+
 }
 
 #endif /// HEARTBEAT_ENABLED
