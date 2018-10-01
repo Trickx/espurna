@@ -48,7 +48,7 @@ struct _lnode_t {
     unsigned char lastPacketID = 0;
 };
 
-_lnode_t _lacrosse_node_info[64];
+_lnode_t _lacrosse_node_info[65];
 unsigned char _lacrosse_node_count;
 unsigned long _lacrosse_packet_count;
 
@@ -58,24 +58,27 @@ Influxdb influx(INFLUXDB_HOST);
 void _lacrosseProcess(LaCrosse::Frame * data) {
 
     // Count seen nodes and packets
+    DEBUG_MSG("[Lacrosse] ID found: %d\n", data->ID);
     if (_lacrosse_node_info[data->ID].count == 0) ++_lacrosse_node_count;
     ++_lacrosse_packet_count;
 
     _lacrosse_node_info[data->ID].count = _lacrosse_node_info[data->ID].count + 1;
 
     // Send info to websocket clients
-    /*
     {
         char buffer[200];
+        char tempstr[10]; dtostrf(data->Temperature,6, 1, tempstr);
+        char humstr[10]; dtostrf(data->Humidity,6, 1, humstr);
         snprintf_P(
             buffer,
             sizeof(buffer) - 1,
             PSTR("{\"nodeCount\": %d, \"packetCount\": %lu, \"packet\": {\"senderID\": %u, \"targetID\": %u, \"packetID\": %u, \"key\": \"%s\", \"value\": \"%s\", \"rssi\": %d, \"duplicates\": %d, \"missing\": %d}}"),
             _lacrosse_node_count, _lacrosse_packet_count,
-            data->ID, 0, 0, 0, data->Temperature, data->Humidity, 0, 0);
+            data->ID, _lacrosse_node_info[data->ID].count, 3,
+            humstr, tempstr,
+            8, 9, 10);
         wsSend(buffer);
     }
-    */
 
     // Try to find a matching mapping
     for (unsigned int i=0; i<RFM69_MAX_TOPICS; i++) {
@@ -197,6 +200,10 @@ bool HandleReceivedData(RFMxx *rfm) {
       _lacrosseProcess(&lcf);
 
       Dispatch(lcf.Text, raw);
+      
+      // Count seen nodes and packets
+      //if (_lacrosse_node_info[lcf.ID].count == 0) ++_lacrosse_node_count;
+      //_lacrosse_packet_count++;
 
       //if(lcf.ID == 12){
         //idbSend("Humidity",    lcf.ID,  String(lcf.Humidity).c_str());
@@ -257,12 +264,51 @@ void _lacrosseLoop() {
 
 void _lacrosseClear() {
     //for(unsigned int i=0; i<255; i++) {
+    for(unsigned int i=0; i<(sizeof(_lacrosse_node_info) / sizeof(_lnode_t)); i++) {
+      
     //    _rfm69_node_info[i].duplicates = 0;
     //    _rfm69_node_info[i].missing = 0;
-    //}
+          _lacrosse_node_info [i].count = 0;
+    }
     _lacrosse_node_count = 0;
     _lacrosse_packet_count = 0;
 }
+
+// -----------------------------------------------------------------------------
+// WEB
+// -----------------------------------------------------------------------------
+
+#if WEB_SUPPORT
+
+void _lacrosseWebSocketOnSend(JsonObject& root) {
+    root["rfm69Visible"] = 1;
+    root["rfm69Topic"] = getSetting("rfm69Topic", RFM69_DEFAULT_TOPIC);
+    root["packetCount"] = _lacrosse_packet_count;
+    root["nodeCount"] = _lacrosse_node_count;
+    JsonArray& mappings = root.createNestedArray("mapping");
+    for (unsigned char i=0; i<RFM69_MAX_TOPICS; i++) {
+        unsigned char node = getSetting("node", i, 0).toInt();
+        if (0 == node) break;
+        JsonObject& mapping = mappings.createNestedObject();
+        mapping["node"] = node;
+        mapping["key"] = getSetting("key", i, "");
+        mapping["topic"] = getSetting("topic", i, "");
+    }
+
+}
+
+bool _lacrosseWebSocketOnReceive(const char * key, JsonVariant& value) {
+    if (strncmp(key, "rfm69", 5) == 0) return true;
+    if (strncmp(key, "node", 4) == 0) return true;
+    if (strncmp(key, "key", 3) == 0) return true;
+    if (strncmp(key, "topic", 5) == 0) return true;
+    return false;
+}
+
+void _lacrosseWebSocketOnAction(uint32_t client_id, const char * action, JsonObject& data) {
+    if (strcmp(action, "clear-counts") == 0) _lacrosseClear();
+}
+#endif // WEB_SUPPORT
 
 // -----------------------------------------------------------------------------
 // Setup
@@ -291,13 +337,11 @@ void lacrosseSetup() {
     logger.println(rfm1.GetRadioName());
   }
 
-  /*
   #if WEB_SUPPORT
-      wsOnSendRegister(_rfm69WebSocketOnSend);
-      wsOnReceiveRegister(_rfm69WebSocketOnReceive);
-      wsOnActionRegister(_rfm69WebSocketOnAction);
+      wsOnSendRegister(_lacrosseWebSocketOnSend);
+      wsOnReceiveRegister(_lacrosseWebSocketOnReceive);
+      wsOnActionRegister(_lacrosseWebSocketOnAction);
   #endif
-  */
 
     // Register loop
     espurnaRegisterLoop(_lacrosseLoop);
