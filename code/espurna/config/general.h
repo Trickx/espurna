@@ -9,8 +9,11 @@
 
 #define DEVICE_NAME             MANUFACTURER "_" DEVICE     // Concatenate both to get a unique device name
 
+// When defined, ADMIN_PASS must be 8..63 printable ASCII characters. See:
+// https://en.wikipedia.org/wiki/Wi-Fi_Protected_Access#Target_users_(authentication_key_distribution)
+// https://github.com/xoseperez/espurna/issues/1151
 #ifndef ADMIN_PASS
-#define ADMIN_PASS              "fibonacci"     // Default password (WEB, OTA, WIFI)
+#define ADMIN_PASS              "fibonacci"     // Default password (WEB, OTA, WIFI SoftAP)
 #endif
 
 #ifndef USE_PASSWORD
@@ -107,6 +110,10 @@
 #define TELNET_STA              0               // By default, disallow connections via STA interface
 #endif
 
+#ifndef TELNET_PASSWORD
+#define TELNET_PASSWORD         1               // Request password to start telnet session by default
+#endif
+
 #define TELNET_PORT             23              // Port to listen to telnet clients
 #define TELNET_MAX_CLIENTS      1               // Max number of concurrent telnet clients
 
@@ -158,8 +165,17 @@
 // HEARTBEAT
 //------------------------------------------------------------------------------
 
-#ifndef HEARTBEAT_ENABLED
-#define HEARTBEAT_ENABLED           1
+#define HEARTBEAT_NONE              0           // Never send heartbeat
+#define HEARTBEAT_ONCE              1           // Send it only once upon MQTT connection
+#define HEARTBEAT_REPEAT            2           // Send it upon MQTT connection and every HEARTBEAT_INTERVAL
+
+// Backwards compatibility check
+#if defined(HEARTBEAT_ENABLED) && (HEARTBEAT_ENABLED == 0)
+#define HEARTBEAT_MODE              HEARTBEAT_NONE
+#endif
+
+#ifndef HEARTBEAT_MODE
+#define HEARTBEAT_MODE              HEARTBEAT_REPEAT
 #endif
 
 #ifndef HEARTBEAT_INTERVAL
@@ -309,6 +325,9 @@
 #define WIFI_AP_CAPTIVE             1                   // Captive portal enabled when in AP mode
 #endif
 
+#ifndef WIFI_FALLBACK_APMODE
+#define WIFI_FALLBACK_APMODE        1                   // Fallback to AP mode if no STA connection
+#endif
 
 #ifndef WIFI_SLEEP_MODE
 #define WIFI_SLEEP_MODE             WIFI_NONE_SLEEP     // WIFI_NONE_SLEEP, WIFI_LIGHT_SLEEP or WIFI_MODEM_SLEEP
@@ -446,6 +465,11 @@
 // This will only be enabled if WEB_SUPPORT is 1 (this is the default value)
 #ifndef API_ENABLED
 #define API_ENABLED                 0           // Do not enable API by default
+#endif
+
+#ifndef API_RESTFUL
+#define API_RESTFUL                 1           // A restful API requires changes to be issued as PUT requests
+                                                // Setting this to 0 will allow using GET to change relays, for instance
 #endif
 
 #ifndef API_BUFFER_SIZE
@@ -909,6 +933,14 @@
 #define HOMEASSISTANT_PAYLOAD_OFF   "0"         // Payload for OFF and unavailable messages
 #endif
 
+#ifndef HOMEASSISTANT_PAYLOAD_AVAILABLE
+#define HOMEASSISTANT_PAYLOAD_AVAILABLE     "1" // Payload for available messages
+#endif
+
+#ifndef HOMEASSISTANT_PAYLOAD_NOT_AVAILABLE
+#define HOMEASSISTANT_PAYLOAD_NOT_AVAILABLE "0" // Payload for available messages
+#endif
+
 // -----------------------------------------------------------------------------
 // INFLUXDB
 // -----------------------------------------------------------------------------
@@ -978,6 +1010,11 @@
 #define THINGSPEAK_URL              "/update"
 
 #define THINGSPEAK_MIN_INTERVAL     15000           // Minimum interval between POSTs (in millis)
+#define THINGSPEAK_FIELDS           8               // Number of fields
+
+#ifndef THINGSPEAK_TRIES
+#define THINGSPEAK_TRIES            3               // Number of tries when sending data (minimum 1)
+#endif
 
 // -----------------------------------------------------------------------------
 // SCHEDULER
@@ -1317,11 +1354,11 @@
 #endif
 
 #ifndef RFM69_NODE_ID
-#define RFM69_NODE_ID               2
+#define RFM69_NODE_ID               1
 #endif
 
 #ifndef RFM69_GATEWAY_ID
-#define RFM69_GATEWAY_ID            2
+#define RFM69_GATEWAY_ID            1
 #endif
 
 #ifndef RFM69_NETWORK_ID
@@ -1329,7 +1366,7 @@
 #endif
 
 #ifndef RFM69_PROMISCUOUS
-#define RFM69_PROMISCUOUS           1
+#define RFM69_PROMISCUOUS           0
 #endif
 
 #ifndef RFM69_PROMISCUOUS_SENDS

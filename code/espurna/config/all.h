@@ -30,11 +30,11 @@
 #include "defaults.h"
 #include "general.h"
 #include "dependencies.h"
+#include "debug.h"
 #include "prototypes.h"
 #include "sensors.h"
 #include "webui.h"
 #include "progmem.h"
-#include "debug.h"
 
 #ifdef USE_CORE_VERSION_H
 #include "core_version.h"
@@ -49,6 +49,6 @@
 #include "../libs/LaCrosse.h"
 // TODO: fix hardcoded settings
 #include <InfluxDb.h>
-#define INFLUXDB_HOST "192.168.0.21"
-#define INFLUXDB_PORT "8086"
-#define INFLUXDB_DATABASE "lacrosse"
+//#define INFLUXDB_HOST "192.168.0.21"
+//#define INFLUXDB_PORT "8086"
+//#define INFLUXDB_DATABASE "lacrosse"
